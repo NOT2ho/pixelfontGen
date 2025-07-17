@@ -56,19 +56,10 @@ connect :: [Point] -> Path
 connect d = let hor = concatMap t2 (sort $ gb (\(a,b) (c,d') -> a == c) d)
                 in let vert = concatMap t2 (sort $ gb (\(a,b) (c,d') -> b == d') d)
                 in trace (show (pointer $ hv (head hor) (hor ++ vert))) pointer $ hv (head hor) (hor ++ vert)
-
+-- Joseph O'ROURKE, Uniqueness of Orthogonal Connect-the-Dots, 1988
 
 pointer :: [Edge] -> Path
 pointer e = nub $ concatMap (\(a , b) -> [a , b]) e
-
-connect' :: [Point] -> [Edge]
-connect' d = let hor = concatMap t2 (sort $ gb (\(a,b) (c,d') -> a == c) d)
-                in let vert = concatMap t2 (sort $ gb (\(a,b) (c,d') -> b == d') d)
-                in hv (head hor) (tail $ hor ++ vert)
-
--- Joseph O'ROURKE, Uniqueness of Orthogonal Connect-the-Dots, 1988
-
-
 
 hv :: Edge -> [Edge] -> [Edge]
 hv (p,p') ess = let (esss, es) = partition (\(x,x') -> x == p || x' == p  || x == p' || x' == p') ess
@@ -108,12 +99,11 @@ meet p ((x,y), r) = mapMaybe (\((a,b), (a',b')) -> if a == a'
                                                 ) (pair p)
 
 isInside :: Path -> Point -> Bool
-isInside p (x,y) = let p' = filter (\((a,b), (a',b')) -> a > x && (b - y) * (b' - y) < 0) (pair p)
-                    in let its = filter (\(a, b) -> a > x && b == y) p
-                    in let np' = length $ filter (isVaildPoint p) its
-                    in (np' + length (filter (\((a,b), (a',b')) -> a > x && (b - y) * (b' - y) < 0) (pair p))) `mod` 2 == 1
+isInside p (x,y) = let p' = filter (\((a,b), (a',b')) -> a >= x && (b - y) * (b' - y) < 0) (pair p)
+                    in let its = filter (\(a, b) -> a >= x && b == y) p
+                    in let np' = length $ vaildPoints its p
+                    in (np' + length p') `mod` 2 == 1
 
-                    -- false when it is on Points and true when it is on edges
 
 pair' :: [a] -> [(a,a)]
 pair' (a:as) = if length as == 1 then [(a,head as)] else (a, head as) : pair' as
@@ -126,18 +116,18 @@ single :: [(a,a)] -> [a]
 single = map fst
 
 
-isVaildPoint :: Path -> Point -> Bool
-isVaildPoint p d = let is = d `elemIndices` p
-                    in let lp = length p
-                    in let iss' = tail $ foldl (\acc c -> if last (last acc) + 1 == c then init acc ++ [last acc ++ [c]] else init acc ++ [last acc] ++ [[c]]) [[last is]] is
-                    in let iss = (if (length iss' > 1) && (head (head iss') == 0 && last (last iss') == length p -1) then init $ tail iss' ++ [head iss' ++ last iss'] else iss')
-                    in length (filter (\ l -> if length l == 1
-                            then let i = head l
-                            in snd (p !! cAdd lp i 1) * snd (p !! cAdd lp i (-1)) <= 0
-                            else let (i,j) = (head l, last l)
-                            in snd (p !! cAdd lp j 1) * snd (p !! cAdd lp i (-1)) <= 0
-                                ) iss)
-                        `mod` 2 == 1
+vaildPoints :: Path -> [Point] -> [Point]
+vaildPoints p d = let is = concatMap (`elemIndices` p) d
+                  in mapMaybe (\x -> let lp = length p
+                  in let (x', y') = x
+                  in let iss' = tail $ foldl (\acc c -> if last (last acc) + 1 == c then init acc ++ [last acc ++ [c]] else init acc ++ [last acc] ++ [[c]]) [[last is]] is
+                  in let iss = (if (length iss' > 1) && (head (head iss') == 0 && last (last iss') == length p -1) then init $ tail iss' ++ [head iss' ++ last iss'] else iss')
+                  in if length (filter (\ l -> if length l == 1
+                          then let i = head l
+                          in (y' - snd (p !! cAdd lp i 1)) * (y' - snd (p !! cAdd lp i (-1))) <= 0
+                          else let (i,j) = (head l, last l)
+                          in (y' - snd (p !! cAdd lp j 1)) * (y' - snd (p !! cAdd lp i (-1))) <= 0
+                              ) iss) `mod` 2 == 1 then show (x, lp, is, iss', iss) `trace` Just x else ("nothing" ++ show (x, lp, is, iss', iss))  `trace` Nothing) p
 
 cAdd :: Int -> Int -> Int -> Int
 cAdd i a b = (a + b) `mod` i
@@ -169,7 +159,7 @@ randomize s i l = [ (round (x + b * i), round (y + b * i)) | (x,y) <- map (bimap
 rfactor :: Float
 rfactor = 10
 
-seed :: Int 
+seed :: Int
 seed = 4
 
 gi0 :: Path
