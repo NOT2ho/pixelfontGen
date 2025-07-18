@@ -23,12 +23,12 @@ type Squares = [Square]
 ------------io-----------------------
 
 main :: IO ()
-main = svg [path gi0]
+main = svg "test" (map path gi1)
 
-svg :: [String] -> IO ()
-svg l  = do
+svg :: String -> [String] -> IO ()
+svg s l  = do
     currentDir <- getCurrentDirectory
-    let dir = currentDir </> "output.svg"
+    let dir = currentDir </> (s ++ ".svg")
     writeFile dir $ svgxml l
 
 svgxml :: [String] -> String
@@ -42,15 +42,15 @@ path l  = "<path d="
 
 ------------------ square union ----------------------
 
-squares :: Squares -> Path
-squares l = foldl' unionSqr (sqrtoPath (head l)) (tail l)
+squares :: Squares -> [Path]
+squares l = foldl' unionSqr [sqrtoPath (head l)] (tail l)
 
 
-unionSqr :: Path -> Square -> Path
-unionSqr p s = let sp = sqrtoPath s
-                in let o =  filter (not . isInside p) sp ++ filter (not . isInside sp) p
-                in let its = meet p s
-                in show (o, its)`trace` connect (o ++ its)
+unionSqr :: [Path] -> Square -> [Path]
+unionSqr p s = concatMap (\x -> let sp = sqrtoPath s in if null (meet x s)  then [x, sp] else
+                let o =  filter (not . isInside x) sp ++ filter (not . isInside sp) x
+                in let its = meet x s
+                in show (o, its) `trace` [connect (o ++ its)]) p
 
 connect :: [Point] -> Path
 connect d = let hor = concatMap t2 (sort $ gb (\(a,b) (c,d') -> a == c) d)
@@ -64,7 +64,7 @@ pointer e = nub $ concatMap (\(a , b) -> [a , b]) e
 hv :: Edge -> [Edge] -> [Edge]
 hv (p,p') ess = let (esss, es) = partition (\(x,x') -> x == p || x' == p  || x == p' || x' == p') ess
                                 in let e = filter (\x -> x /= (p,p')) esss
-                                in if e == [] then []
+                                in if null e then []
                                 else head e : hv (head e) (tail e ++ es)
 
 gb :: (a -> a -> Bool) -> [a] -> [[a]]
@@ -98,12 +98,16 @@ meet p ((x,y), r) = mapMaybe (\((a,b), (a',b')) -> if a == a'
                                                                     else Nothing
                                                 ) (pair p)
 
-isInside :: Path -> Point -> Bool
-isInside p (x,y) = let p' = filter (\((a,b), (a',b')) -> a >= x && (b - y) * (b' - y) < 0) (pair p)
-                    in let its = filter (\(a, b) -> a >= x && b == y) p
-                    in let np' = length $ vaildPoints its p
-                    in (np' + length p') `mod` 2 == 1
 
+isOn :: Point -> Path -> Bool
+isOn (a, b) p = any (\((x,y), (x', y')) -> (x' == x && a == x && (b-y) * (b-y') <= 0) || (y' == y) && b == y &&(a-x) * (a-x') <= 0) (pair p)
+
+isInside :: Path -> Point -> Bool
+isInside p (x,y) =  let p' = filter (\((a,b), (a',b')) -> a < x && (b - y) * (b' - y) < 0) (pair p)
+                    in let its = filter (\(a, b) -> a >= x && b == y) p
+                    in let np' = length $ vaildPoints p its
+                    in trace ("ii : " ++ show ((x,y), its, vaildPoints p its, p', (x,y) `isOn` p, (np' + length p') `mod` 2 == 1))
+                    (((x,y) `isOn` p) || ((np' + length p') `mod` 2 == 1))
 
 pair' :: [a] -> [(a,a)]
 pair' (a:as) = if length as == 1 then [(a,head as)] else (a, head as) : pair' as
@@ -119,15 +123,15 @@ single = map fst
 vaildPoints :: Path -> [Point] -> [Point]
 vaildPoints p d = let is = concatMap (`elemIndices` p) d
                   in mapMaybe (\x -> let lp = length p
-                  in let (x', y') = x
-                  in let iss' = tail $ foldl (\acc c -> if last (last acc) + 1 == c then init acc ++ [last acc ++ [c]] else init acc ++ [last acc] ++ [[c]]) [[last is]] is
-                  in let iss = (if (length iss' > 1) && (head (head iss') == 0 && last (last iss') == length p -1) then init $ tail iss' ++ [head iss' ++ last iss'] else iss')
-                  in if length (filter (\ l -> if length l == 1
-                          then let i = head l
-                          in (y' - snd (p !! cAdd lp i 1)) * (y' - snd (p !! cAdd lp i (-1))) <= 0
-                          else let (i,j) = (head l, last l)
-                          in (y' - snd (p !! cAdd lp j 1)) * (y' - snd (p !! cAdd lp i (-1))) <= 0
-                              ) iss) `mod` 2 == 1 then show (x, lp, is, iss', iss) `trace` Just x else ("nothing" ++ show (x, lp, is, iss', iss))  `trace` Nothing) p
+                    in let (x', y') = x
+                    in let iss' = tail $ foldl (\acc c -> if last (last acc) + 1 == c then init acc ++ [last acc ++ [c]] else init acc ++ [last acc] ++ [[c]]) [[last is]] is
+                    in let iss = (if (length iss' > 1) && (head (head iss') == 0 && last (last iss') == length p -1) then drop 1 $ tail iss' ++ [last iss' ++ head iss'] else iss')
+                    in if length (filter (\ l -> if length l == 1
+                            then let i = head l
+                            in  (y' - snd (p !! cAdd lp i 1)) * (y' - snd (p !! cAdd lp i (-1))) < 0
+                            else let (i,j) = (head l, last l)
+                            in (y' - snd (p !! cAdd lp i 1)) * (y' - snd (p !! cAdd lp j (-1))) < 0
+                                ) iss) `mod` 2 == 1 then show (x, lp, is, iss',  iss) `trace` Just x else ("nothing" ++ show (x, lp, is, iss', iss))  `trace` Nothing) d
 
 cAdd :: Int -> Int -> Int -> Int
 cAdd i a b = (a + b) `mod` i
@@ -162,11 +166,11 @@ rfactor = 10
 seed :: Int
 seed = 4
 
-gi0 :: Path
+gi0 :: [Path]
 gi0 = squares $ map (square 160) (randomize seed rfactor [(190,190), (300,170), (410,200), (500,190),(610,100),(590,100),(580,210),(570,300),(560,401),(550,502)])
 
-gi1 :: Path
-gi1 = []
+gi1 :: [Path]
+gi1 = squares $ map (square 149) (randomize seed rfactor [(100, 100), (200,100), (300,100), (400,100),(500,100),(500,200),(500,300),(500,400),(500,500)])
 
 gi2 :: Path
 gi2 = []
