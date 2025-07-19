@@ -23,7 +23,7 @@ type Squares = [Square]
 ------------io-----------------------
 
 main :: IO ()
-main = svg "test" (map path gi1)
+main = svg "test2" $ map path gi1
 
 svg :: String -> [String] -> IO ()
 svg s l  = do
@@ -43,19 +43,102 @@ path l  = "<path d="
 ------------------ square union ----------------------
 
 squares :: Squares -> [Path]
-squares l = foldl' unionSqr [sqrtoPath (head l)] (tail l)
+squares l = fixedUnionPath (map sqrtoPath l)
+
+unionPath :: Path -> Path -> Path
+unionPath p p' =let o =  filter (not . isInside p) p' ++ filter (not . isInside p') p
+                in let o' =  filter (isInside p) p' ++ filter (isInside p') p
+                in let d = (p *-* p') `union` (p' *-* p)
+                in let its = meet p p'
+                in if p `hasCommon` p' then connect $ p `union` p'
+                else if isDisjoint p p' &&  or (onSameLine <$> pair p <*>  pair p') && not (or (isProperSub <$> pair p <*>  pair p')) && not (or (isProperSub <$> pair p' <*>  pair p))  
+                    then connect (p `union` p')
+                else if onBoundary p p' && or (onSameLine <$> pair p <*>  pair p') then connect ((p `union` p') \\ d)
+                else if onBoundary p p' && or (isProperSub <$> pair p <*>  pair p') && o' /= [] then p
+                else if onBoundary p p' && or (isProperSub <$> pair p' <*>  pair p) && o' /= [] then p'
+                     else connect ((o ++ its) \\ d)
+
+(*-*) :: Path -> Path -> [Point]
+(*-*) p p' = catMaybes $ (\a b -> if a `isInEdge` b then Just a else Nothing) <$> p <*> pair p'
+
+isAttachable :: Path -> Path -> Bool
+isAttachable x p' = not (null (meet x p')) || or (onSameLine <$> pair x <*>  pair p')
+
+unionPaths :: [Path] -> [Path]
+unionPaths (p:ps:pss) = if p `isAttachable` ps then p `unionPath` ps : pss
+                                                else p : pss ++ [ps]
+unionPaths (p:ps) = [p]
+
+-- unionPaths :: [Path] -> [Path]
+-- unionPaths p= [foldl1 (\acc b -> if acc `isAttachable` b then unionPath acc b else acc) p, p `nub` (foldl1 (\acc b -> if acc `isAttachable` b then unionPath acc b else acc) p)]
+
+fixedUnionPath :: [Path] -> [Path]
+fixedUnionPath p = if unionPaths p == p then p else fixedUnionPath $ unionPaths p
+
+isDisjoint :: Path -> Path -> Bool
+isDisjoint p p' = not (any (isInside p') p || any (isInside p) p') && null (meet p p')
+
+inBoundary :: Path -> Path -> Bool
+inBoundary p p' = any (`isIn` p') p || any (`isIn` p) p'
+
+onBoundary :: Path -> Path -> Bool
+onBoundary p p' = any (`isOn` p') p || any (`isOn` p) p'
+
+isInterior :: Path -> Point -> Bool
+isInterior p x = not (isOn x p) && isInside p x
+
+onSameLine :: Edge -> Edge -> Bool
+onSameLine ((x,y), (a,b)) ((x',y'), (a',b'))
+    | (x == x' && x == a' && a == x) || (y == y' && y == b' && b == y)= (x',y') `isOn` [(x,y), (a,b)] || (a',b') `isOn` [(x,y), (a,b)] || (x,y) `isOn` [(x',y'), (a',b')] || (a,b) `isOn` [(x',y'), (a',b')]
+    | otherwise = False
+
+hasCommon :: Path -> Path -> Bool
+hasCommon p p' = or [ (a == b && a' == b') || (a == b' && a' == b) | (a, a') <- pair p' | (b , b') <- pair p]
 
 
-unionSqr :: [Path] -> Square -> [Path]
-unionSqr p s = concatMap (\x -> let sp = sqrtoPath s in if null (meet x s)  then [x, sp] else
+isProperSub :: Edge -> Edge -> Bool
+isProperSub ((x,y), (a,b)) ((x',y'), (a',b'))
+    | ((x,y), (a,b)) == ((x',y'), (a',b')) = False
+    | x == x' && x == a' && a == x = if (y-b) * (y' - b') > 0 then (y-y') * (b-b') < 0
+                                    else ((y-b) * (y' - b') > 0) && ((y-y') * (b-b') > 0)
+    | y == y' && y == b' && b == y = if (x-a) * (x' - a') > 0 then (x-x') * (a-a') < 0
+                                    else ((x-a) * (x' - a') > 0) && ((x-x') * (a-a') > 0)
+    | otherwise = False
+
+
+-- isProperSub :: Edge -> Edge -> Bool
+-- isProperSub ((x,y), (a,b)) ((x',y'), (a',b'))
+--     | ((x,y), (a,b)) == ((x',y'), (a',b')) = False
+--     | x == x' && x == a' && a == x = if y == y'
+--         then (b - y) * (b' - y) > 0
+--         else if b' == b
+--             then (b - y') * (b - y) > 0
+--             else if b' == y then (b' - y') * (b' - b) > 0
+--             else (b - y) * (b - b') > 0
+--     | y == y' && y == b' && b == y = if x == x'
+--         then (a - x) * (a' - x) > 0
+--         else if a == a'
+--             then (a - x') * (a - x) > 0
+--             else if a' == x then (a' - x') * (a' - a) > 0
+--             else (a - x) * (a - a') > 0
+--     | otherwise = False
+
+unionLine :: Edge -> Edge -> Maybe Edge
+unionLine ((x,y), (a,b)) ((x',y'), (a',b'))
+    | x == x' && x == a' && a' == x = Just ((x, minimum [y , y' , b , b']), (x, maximum [y , y' , b , b']))
+    | y == y' && y == b' && b' == y = Just ((y, minimum [x , x' , a , a']), (x, maximum [x , x' , a , a']))
+    | otherwise = Nothing
+
+unionSqr :: Path -> Square -> Path
+unionSqr p s = (\x -> let sp = sqrtoPath s in
                 let o =  filter (not . isInside x) sp ++ filter (not . isInside sp) x
-                in let its = meet x s
-                in show (o, its) `trace` [connect (o ++ its)]) p
+                in let its = meetSqr x s
+                in connect (o ++ its)) p
 
 connect :: [Point] -> Path
 connect d = let hor = concatMap t2 (sort $ gb (\(a,b) (c,d') -> a == c) d)
                 in let vert = concatMap t2 (sort $ gb (\(a,b) (c,d') -> b == d') d)
-                in trace (show (pointer $ hv (head hor) (hor ++ vert))) pointer $ hv (head hor) (hor ++ vert)
+                in pointer $ hv (head hor) (hor ++ vert)
 -- Joseph O'ROURKE, Uniqueness of Orthogonal Connect-the-Dots, 1988
 
 pointer :: [Edge] -> Path
@@ -83,8 +166,23 @@ t2 (l:ls:lss) = (l, ls) : t2 lss
 t2 (l:ls) = if not (null ls) then [(l, head ls)] else error (show (l:ls))
 t2 _ = []
 
-meet :: Path -> Square -> [Point]
-meet p ((x,y), r) = mapMaybe (\((a,b), (a',b')) -> if a == a'
+meetPoint :: Edge -> Edge -> Maybe Point
+meetPoint ((x,y), (a,b)) ((x',y'), (a',b'))
+  | ((x,y), (a,b)) == ((x',y'), (a',b')) = Nothing
+  | x == a && y' == b' = if ((y'- y) * (y' - b)) < 0 && ((x - x') * (x - a')) < 0
+                                                            then Just (x, y')
+                                                            else Nothing
+  | y == b && x' == a' = if((y - b') * (y - y')) < 0 && ((x' - x) * (x' - a)) < 0
+                                                            then Just (x', y)
+                                                            else Nothing
+  | otherwise = Nothing
+
+
+meet :: Path -> Path -> [Point]
+meet p p' =  catMaybes (meetPoint <$> pair p <*> pair p')
+
+meetSqr :: Path -> Square -> [Point]
+meetSqr p ((x,y), r) = mapMaybe (\((a,b), (a',b')) -> if a == a'
                                                     then if ((a - x) * (a - (x+r))) < 0 && ((b - y) * (b' - y)) < 0
                                                             then Just (a, y)
                                                             else if ((a - x) * (a - (x+r))) < 0 && (b - (y+r)) * (b' - (y+r)) < 0
@@ -98,16 +196,20 @@ meet p ((x,y), r) = mapMaybe (\((a,b), (a',b')) -> if a == a'
                                                                     else Nothing
                                                 ) (pair p)
 
+isInEdge :: Point -> Edge -> Bool
+isInEdge (a, b) ((x,y), (x', y')) = (x' == x && a == x && (b-y) * (b-y') < 0) || ((y' == y) && b == y &&(a-x) * (a-x') < 0)
+
+isIn :: Point -> Path -> Bool
+isIn (a, b) p = any (\((x,y), (x', y')) -> (x' == x && a == x && (b-y) * (b-y') < 0) || ((y' == y) && b == y &&(a-x) * (a-x') < 0)) (pair p)
 
 isOn :: Point -> Path -> Bool
-isOn (a, b) p = any (\((x,y), (x', y')) -> (x' == x && a == x && (b-y) * (b-y') <= 0) || (y' == y) && b == y &&(a-x) * (a-x') <= 0) (pair p)
+isOn (a, b) p = any (\((x,y), (x', y')) -> (x' == x && a == x && (b-y) * (b-y') <= 0) || ((y' == y) && b == y &&(a-x) * (a-x') <= 0)) (pair p)
 
 isInside :: Path -> Point -> Bool
 isInside p (x,y) =  let p' = filter (\((a,b), (a',b')) -> a < x && (b - y) * (b' - y) < 0) (pair p)
                     in let its = filter (\(a, b) -> a >= x && b == y) p
                     in let np' = length $ vaildPoints p its
-                    in trace ("ii : " ++ show ((x,y), its, vaildPoints p its, p', (x,y) `isOn` p, (np' + length p') `mod` 2 == 1))
-                    (((x,y) `isOn` p) || ((np' + length p') `mod` 2 == 1))
+                    in ((x,y) `isOn` p) || ((np' + length p') `mod` 2 == 1)
 
 pair' :: [a] -> [(a,a)]
 pair' (a:as) = if length as == 1 then [(a,head as)] else (a, head as) : pair' as
@@ -131,7 +233,7 @@ vaildPoints p d = let is = concatMap (`elemIndices` p) d
                             in  (y' - snd (p !! cAdd lp i 1)) * (y' - snd (p !! cAdd lp i (-1))) < 0
                             else let (i,j) = (head l, last l)
                             in (y' - snd (p !! cAdd lp i 1)) * (y' - snd (p !! cAdd lp j (-1))) < 0
-                                ) iss) `mod` 2 == 1 then show (x, lp, is, iss',  iss) `trace` Just x else ("nothing" ++ show (x, lp, is, iss', iss))  `trace` Nothing) d
+                                ) iss) `mod` 2 == 1 then Just x else Nothing) d
 
 cAdd :: Int -> Int -> Int -> Int
 cAdd i a b = (a + b) `mod` i
@@ -170,7 +272,7 @@ gi0 :: [Path]
 gi0 = squares $ map (square 160) (randomize seed rfactor [(190,190), (300,170), (410,200), (500,190),(610,100),(590,100),(580,210),(570,300),(560,401),(550,502)])
 
 gi1 :: [Path]
-gi1 = squares $ map (square 149) (randomize seed rfactor [(100, 100), (200,100), (300,100), (400,100),(500,100),(500,200),(500,300),(500,400),(500,500)])
+gi1 = squares $ map (square 149) (randomize seed rfactor [(100, 100), (200,100), (300,100), (400,100), (500,100), (500,200), (500,300),(500,400),(500,500)])
 
 gi2 :: Path
 gi2 = []
