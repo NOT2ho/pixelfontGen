@@ -23,7 +23,7 @@ type Squares = [Square]
 ------------io-----------------------
 
 main :: IO ()
-main = svg "test2" $ map path gi1
+main = svg "test3" $ map path gi0
 
 svg :: String -> [String] -> IO ()
 svg s l  = do
@@ -51,7 +51,7 @@ unionPath p p' =let o =  filter (not . isInside p) p' ++ filter (not . isInside 
                 in let d = (p *-* p') `union` (p' *-* p)
                 in let its = meet p p'
                 in if p `hasCommon` p' then connect $ p `union` p'
-                else if isDisjoint p p' &&  or (onSameLine <$> pair p <*>  pair p') && not (or (isProperSub <$> pair p <*>  pair p')) && not (or (isProperSub <$> pair p' <*>  pair p))  
+                else if isDisjoint p p' &&  or (onSameLine <$> pair p <*>  pair p') && not (or (isProperSub <$> pair p <*>  pair p')) && not (or (isProperSub <$> pair p' <*>  pair p))
                     then connect (p `union` p')
                 else if onBoundary p p' && or (onSameLine <$> pair p <*>  pair p') then connect ((p `union` p') \\ d)
                 else if onBoundary p p' && or (isProperSub <$> pair p <*>  pair p') && o' /= [] then p
@@ -244,6 +244,31 @@ sqrtoPath ((a,b),r) = [ (a,b), (a,b+r) , (a+r, b+r), (a+r, b)]
 square :: Int -> Point -> Square
 square r (a, b)= ((a,b),r)
 
+line :: Edge -> (Int -> Int)
+line ((px, py), (qx, qy)) = let a = fromIntegral  (py-qy) / fromIntegral  (px-qx) :: Float
+                            in (\x -> round $ a * fromIntegral x - a * fromIntegral px + fromIntegral py)
+
+linerect :: Int -> Int -> Int -> Edge -> ([Square], Int)
+linerect t r i ((px, py), (qx, qy)) = let f = line ((px, py), (qx, qy))
+                                    in let dx = round (fromIntegral i * fromIntegral (qx - px) / sqrt (fromIntegral (px - qx) ^ 2 + fromIntegral (py - qy) ^ 2) ::Float)
+                                    in let at = abs $  round (fromIntegral t * fromIntegral (qx - px) / sqrt (fromIntegral (px - qx) ^ 2 + fromIntegral (py - qy) ^ 2) ::Float)
+                                    in let n = abs ((qx - px) `div` dx) + 1
+                                    in let rest = (qx - px) `mod` dx
+                                    in (take n [ square r (a, f a) | a <- [px+at, px+at+dx..]], rest)
+
+linesrect0 :: Int -> Int -> [Edge] -> [Square]
+linesrect0 = linesrect 0
+
+linesrect :: Int -> Int -> Int -> [Edge] -> [Square]
+linesrect t r i (e:es) = let (s, rest) = linerect t r i e
+                        in s ++ linesrect rest r i es
+linesrect _ _ _ [] = []
+
+nbr :: [a] -> [(a,a)]
+nbr a = zip a (drop 1 a)
+
+pathrect :: Int -> Int -> Path -> [Square]
+pathrect r i p = linesrect0 r i (nbr p)
 
 --------random function-------------------------
 
@@ -260,19 +285,28 @@ xorshift32inf seed= map ((/ 4294967295) . fromIntegral) $ iterate xorshift32 see
 randomize :: Int -> Float -> [Point] -> [Point]
 randomize s i l = [ (round (x + b * i), round (y + b * i)) | (x,y) <- map (bimap fromIntegral fromIntegral) l | b <- drop 2 $ xorshift32inf s]
 
+randomizeSqr :: Int -> Float -> [Square] -> [Square]
+randomizeSqr s i l = let p = map fst l
+                    in let r = map snd l
+                    in zip (randomize s i p) r
+
+randomizeSqrr :: Int -> Float -> Float -> [Square] -> [Square]
+randomizeSqrr s i j l = let p = map fst l
+                    in let r = map snd l
+                    in zip (randomize s i p) [ round (fromIntegral a * b * j) | a <- r | b <- drop 2 $ xorshift32inf s]
 --------------const----------------------------
 
 rfactor :: Float
-rfactor = 10
+rfactor = 8
 
 seed :: Int
 seed = 4
 
 gi0 :: [Path]
-gi0 = squares $ map (square 160) (randomize seed rfactor [(190,190), (300,170), (410,200), (500,190),(610,100),(590,100),(580,210),(570,300),(560,401),(550,502)])
+gi0 = squares $ randomizeSqr seed rfactor (pathrect 91 79 [(10,10), (300,20), (320, 30), (300,300)])
 
 gi1 :: [Path]
-gi1 = squares $ map (square 149) (randomize seed rfactor [(100, 100), (200,100), (300,100), (400,100), (500,100), (500,200), (500,300),(500,400),(500,500)])
+gi1 = []
 
 gi2 :: Path
 gi2 = []

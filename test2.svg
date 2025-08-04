@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?> 
- <!DOCTYPE svg  PUBLIC '-//W3C//DTD SVG 1.1//EN' 'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'> 
- <svg version="1.1" viewBox="0 0 1000 1000" xml:space="preserve" xmlns="http://www.w3.org/2000/svg"> 
- 	<path d="M 101 101 L250 101 L250 103 L352 103 L352 107 L404 107 L404 104 L653 104 L653 209 L658 209 L658 358 L651 358 L651 551 L649 551 L649 649 L500 649 L500 500 L502 500 L502 302 L509 302 L509 253 L456 253 L456 256 L307 256 L307 252 L203 252 L203 250 L101 250 z"/>
-
- </svg>
