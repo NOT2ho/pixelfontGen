@@ -16,3 +16,12 @@ gi0 = squares $ randomizeSqr seed rfactor (pathrect 91 79 [(10,10), (300,20), (3
 
 # ``는 infix 4, \\\\는 infix 5 이다.
 나는 이 사실을 몰랐기 때문에 몇 시간을 낭비했다.
+
+## test..
+
+![.](https://github.com/NOT2ho/pixelfontGen/blob/main/test_0.svg)
+![.](https://github.com/NOT2ho/pixelfontGen/blob/main/test_1.svg)
+![.](https://github.com/NOT2ho/pixelfontGen/blob/main/test_2.svg)
+![.](https://github.com/NOT2ho/pixelfontGen/blob/main/test_3.svg)
+![.](https://github.com/NOT2ho/pixelfontGen/blob/main/test_4.svg)
+![.](https://github.com/NOT2ho/pixelfontGen/blob/main/test_5.svg)
