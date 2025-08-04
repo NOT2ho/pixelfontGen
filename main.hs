@@ -23,7 +23,7 @@ type Squares = [Square]
 ------------io-----------------------
 
 main :: IO ()
-main = svg "test3" $ map path gi0
+main = sequence_ [svg ("test_"++ s) $ map path x | s <- map show [0, 1..] | x <- test]
 
 svg :: String -> [String] -> IO ()
 svg s l  = do
@@ -270,6 +270,9 @@ nbr a = zip a (drop 1 a)
 pathrect :: Int -> Int -> Path -> [Square]
 pathrect r i p = linesrect0 r i (nbr p)
 
+translation :: Int -> Int -> Path -> Path 
+translation a b = map (bimap (+a) (+b))
+
 --------random function-------------------------
 
 xorshift32 :: (Num a, Bits a) => a -> a
@@ -297,10 +300,10 @@ randomizeSqrr s i j l = let p = map fst l
 --------------const----------------------------
 
 rfactor :: Float
-rfactor = 8
+rfactor = 6
 
 seed :: Int
-seed = 4
+seed = 1032
 
 gi0 :: [Path]
 gi0 = squares $ randomizeSqr seed rfactor (pathrect 91 79 [(10,10), (300,20), (320, 30), (300,300)])
@@ -308,13 +311,23 @@ gi0 = squares $ randomizeSqr seed rfactor (pathrect 91 79 [(10,10), (300,20), (3
 gi1 :: [Path]
 gi1 = []
 
-gi2 :: Path
+gi2 :: [Path]
 gi2 = []
 
-ni0 :: Path
-ni0 = []
+ni0 :: [Path]
+ni0 = squares $ randomizeSqr seed rfactor (pathrect 101 99 [(40,10), (10,200), (20, 240), (40, 300) , (140, 250), (300,300)])
 
-ni1 :: Path
-ni1 = []
+di0 :: [Path]
+di0 = squares $ randomizeSqr seed rfactor (pathrect 81 69 [(320, 40), (230, 50), (100, 5), (40,10), (10,150), (40, 240), (20, 300) , (120, 290), (300,300)])
+
+a0 :: [Path]
+a0 = squares (randomizeSqr seed rfactor (pathrect 81 69 [(20, 30), (30, 25), (59, 300), (25, 500)])) ++ squares (randomizeSqr seed rfactor (pathrect 81 69 [(30, 220), (70, 219), (90, 230)]))
+
+i0 :: [Path]
+i0 = squares (randomizeSqr seed rfactor (pathrect 81 69 [(60, 20), (25, 500)]))
+
 
 --todo
+
+test :: [[Path]]
+test = (\a b -> map (translation 50 100) a ++ map (translation 500 0) b) <$> [gi0, ni0, di0] <*> [a0, i0]
