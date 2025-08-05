@@ -6,6 +6,8 @@ import Data.Bifunctor
 import Debug.Trace
 import Data.Maybe (maybeToList, catMaybes, mapMaybe)
 import Data.Bits
+import Numeric (showHex)
+import Data.Set (fromList)
 
 type Point = (Int, Int)
 type Path = [Point]
@@ -23,12 +25,12 @@ type Squares = [Square]
 ------------io-----------------------
 
 main :: IO ()
-main = sequence_ [svg ("test_"++ s) $ map path x | s <- map show [0, 1..] | x <- test]
+main = sequence_ hangul
 
 svg :: String -> [String] -> IO ()
 svg s l  = do
     currentDir <- getCurrentDirectory
-    let dir = currentDir </> (s ++ ".svg")
+    let dir = currentDir </> "output" </> (s ++ ".svg")
     writeFile dir $ svgxml l
 
 svgxml :: [String] -> String
@@ -73,7 +75,7 @@ unionPaths (p:ps) = [p]
 -- unionPaths p= [foldl1 (\acc b -> if acc `isAttachable` b then unionPath acc b else acc) p, p `nub` (foldl1 (\acc b -> if acc `isAttachable` b then unionPath acc b else acc) p)]
 
 fixedUnionPath :: [Path] -> [Path]
-fixedUnionPath p = if unionPaths p == p then p else fixedUnionPath $ unionPaths p
+fixedUnionPath p = if fromList (unionPaths p) == fromList p then p else fixedUnionPath $ unionPaths p
 
 isDisjoint :: Path -> Path -> Bool
 isDisjoint p p' = not (any (isInside p') p || any (isInside p) p') && null (meet p p')
@@ -297,37 +299,307 @@ randomizeSqrr :: Int -> Float -> Float -> [Square] -> [Square]
 randomizeSqrr s i j l = let p = map fst l
                     in let r = map snd l
                     in zip (randomize s i p) [ round (fromIntegral a * b * j) | a <- r | b <- drop 2 $ xorshift32inf s]
+
+--------------unicode---------------------
+
+unicode :: Int -> String
+unicode i = showHex (0xAC00 + i) ""
+
+
+hangul :: [IO ()]
+hangul = [svg ("uni"++ unicode s) $ map path x | s <- [0, 1..] | x <- comp]
+
+comp :: [[Path]]
+comp = (\a b c -> map (translation 50 100) a ++ map (translation 500 0) b ++ map (translation 300 500) c) 
+    <$> 
+        [
+        g_0
+        , gg_0
+        , n_0
+        , d_0
+        , dd_0
+        , r_0 
+        , m_0 
+        , b_0 
+        , bb_0
+        , s_0 
+        , ss_0
+        , _0
+        , j_0
+        , jj_0 
+        , c_0 
+        , k_0 
+        , t_0 
+        , p_0
+        , h_0 
+        ] 
+        <*> [
+        a_1
+        , ae_1
+        , ya_1
+        , yae_1
+        , eo_1
+        , e_1
+        , yeo_1
+        , ye_1
+        , o_1
+        , wa_1
+        , wae_1
+        , oe_1
+        , yo_1
+        , u_1
+        , weo_1
+        , we_1
+        , wi_1
+        , yu_1
+        , eu_1
+        , yi_1
+        , i_1
+      ]
+        <*> [
+        []
+        , g_2 
+        , gg_2 
+        , gs_2 
+        , n_2 
+        , nj_2 
+        , nh_2 
+        , d_2 
+        , l_2 
+        , lg_2 
+        , lm_2 
+        , lb_2 
+        , ls_2 
+        , lt_2 
+        , lp_2 
+        , lh_2 
+        , m_2 
+        , b_2 
+        , bs_2 
+        , s_2 
+        , ss_2 
+        , ng_2 
+        , j_2 
+        , c_2 
+        , k_2 
+        , t_2 
+        , p_2 
+        , h_2 
+        ]
+
 --------------const----------------------------
 
 rfactor :: Float
-rfactor = 6
+rfactor = 2
 
 seed :: Int
-seed = 1032
+seed = 4294
 
-gi0 :: [Path]
-gi0 = squares $ randomizeSqr seed rfactor (pathrect 91 79 [(10,10), (300,20), (320, 30), (300,300)])
+radius :: Int 
+radius = 92
 
-gi1 :: [Path]
-gi1 = []
+interval :: Int
+interval = 77
 
-gi2 :: [Path]
-gi2 = []
+g_0 :: [Path]
+g_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(10,10), (300,20), (320, 30), (300,300)])
 
-ni0 :: [Path]
-ni0 = squares $ randomizeSqr seed rfactor (pathrect 101 99 [(40,10), (10,200), (20, 240), (40, 300) , (140, 250), (300,300)])
+gg_0 :: [Path]
+gg_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
 
-di0 :: [Path]
-di0 = squares $ randomizeSqr seed rfactor (pathrect 81 69 [(320, 40), (230, 50), (100, 5), (40,10), (10,150), (40, 240), (20, 300) , (120, 290), (300,300)])
+n_0 :: [Path]
+n_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(40,10), (10,200), (20, 240), (40, 300) , (140, 250), (300,300)])
 
-a0 :: [Path]
-a0 = squares (randomizeSqr seed rfactor (pathrect 81 69 [(20, 30), (30, 25), (59, 300), (25, 500)])) ++ squares (randomizeSqr seed rfactor (pathrect 81 69 [(30, 220), (70, 219), (90, 230)]))
+d_0 :: [Path]
+d_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(320, 40), (230, 50), (100, 5), (40,10), (10,150), (40, 240), (20, 300) , (120, 290), (300,300)])
 
-i0 :: [Path]
-i0 = squares (randomizeSqr seed rfactor (pathrect 81 69 [(60, 20), (25, 500)]))
+dd_0 :: [Path]
+dd_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+
+r_0 :: [Path]
+r_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+
+m_0 :: [Path]
+m_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+
+b_0 :: [Path]
+b_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+
+bb_0 :: [Path]
+bb_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+
+s_0 :: [Path]
+s_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+
+ss_0 :: [Path]
+ss_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+
+_0 :: [Path]
+_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+
+j_0 :: [Path]
+j_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+
+jj_0 :: [Path]
+jj_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+
+c_0 :: [Path]
+c_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+
+k_0 :: [Path]
+k_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+
+t_0 :: [Path]
+t_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+
+p_0 :: [Path]
+p_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+
+h_0 :: [Path]
+h_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
 
 
---todo
+a_1 :: [Path]
+a_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(20, 30), (30, 25), (59, 300), (25, 500)])) ++ squares (randomizeSqr seed rfactor (pathrect radius interval [(30, 220), (70, 219), (90, 230)]))
 
-test :: [[Path]]
-test = (\a b -> map (translation 50 100) a ++ map (translation 500 0) b) <$> [gi0, ni0, di0] <*> [a0, i0]
+ae_1 :: [Path]
+ae_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+ya_1 :: [Path]
+ya_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+yae_1 :: [Path]
+yae_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+eo_1 :: [Path]
+eo_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+e_1 :: [Path]
+e_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+yeo_1 :: [Path]
+yeo_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+ye_1 :: [Path]
+ye_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+o_1 :: [Path]
+o_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+wa_1 :: [Path]
+wa_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+wae_1 :: [Path]
+wae_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+oe_1 :: [Path]
+oe_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+yo_1 :: [Path]
+yo_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+u_1 :: [Path]
+u_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+weo_1 :: [Path]
+weo_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+we_1 :: [Path]
+we_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+wi_1 :: [Path]
+wi_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+yu_1 :: [Path]
+yu_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+eu_1 :: [Path]
+eu_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+yi_1 :: [Path]
+yi_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+i_1 :: [Path]
+i_1 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+
+g_2 :: [Path]
+g_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+gg_2 :: [Path]
+gg_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+gs_2 :: [Path]
+gs_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+n_2 :: [Path]
+n_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+nj_2 :: [Path]
+nj_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+nh_2 :: [Path]
+nh_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+d_2 :: [Path]
+d_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+l_2 :: [Path]
+l_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+lg_2 :: [Path]
+lg_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+lm_2 :: [Path]
+lm_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+lb_2 :: [Path]
+lb_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+ls_2 :: [Path]
+ls_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+lt_2 :: [Path]
+lt_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+lp_2 :: [Path]
+lp_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+lh_2 :: [Path]
+lh_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+m_2 :: [Path]
+m_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+b_2 :: [Path]
+b_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+bs_2 :: [Path]
+bs_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+s_2 :: [Path]
+s_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+ss_2 :: [Path]
+ss_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+ng_2 :: [Path]
+ng_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+j_2 :: [Path]
+j_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+c_2 :: [Path]
+c_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+k_2 :: [Path]
+k_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+t_2 :: [Path]
+t_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+p_2 :: [Path]
+p_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
+
+h_2 :: [Path]
+h_2 = squares (randomizeSqr seed rfactor (pathrect radius interval [(30,90),(275,100)]))
