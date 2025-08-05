@@ -9,10 +9,10 @@ import Data.Bits
 import Numeric (showHex)
 import Data.Set (fromList)
 
-type Point = (Int, Int)
+type Point = (Float, Float)
 type Path = [Point]
 type Edge = (Point, Point)
-type Square = (Point, Int)
+type Square = (Point, Float)
 ---- ((a,b),r)
 
 --     (a,b) ---(a+r, b)
@@ -70,6 +70,7 @@ unionPaths :: [Path] -> [Path]
 unionPaths (p:ps:pss) = if p `isAttachable` ps then p `unionPath` ps : pss
                                                 else p : pss ++ [ps]
 unionPaths (p:ps) = [p]
+unionPaths [] = []
 
 -- unionPaths :: [Path] -> [Path]
 -- unionPaths p= [foldl1 (\acc b -> if acc `isAttachable` b then unionPath acc b else acc) p, p `nub` (foldl1 (\acc b -> if acc `isAttachable` b then unionPath acc b else acc) p)]
@@ -243,25 +244,32 @@ cAdd i a b = (a + b) `mod` i
 sqrtoPath :: Square -> Path
 sqrtoPath ((a,b),r) = [ (a,b), (a,b+r) , (a+r, b+r), (a+r, b)]
 
-square :: Int -> Point -> Square
+square :: Float -> Point -> Square
 square r (a, b)= ((a,b),r)
 
-line :: Edge -> (Int -> Int)
-line ((px, py), (qx, qy)) = let a = fromIntegral  (py-qy) / fromIntegral  (px-qx) :: Float
-                            in (\x -> round $ a * fromIntegral x - a * fromIntegral px + fromIntegral py)
+line :: Edge -> (Float -> Float)
+line ((px, py), (qx, qy)) = if   (px-qx) /= 0
+                            then
+                                let a =   (py-qy) /   (px-qx) :: Float
+                                in (\x -> a *  x - a *  px +  py)
+                            else error $ show px ++ " = " ++ show qx
 
-linerect :: Int -> Int -> Int -> Edge -> ([Square], Int)
-linerect t r i ((px, py), (qx, qy)) = let f = line ((px, py), (qx, qy))
-                                    in let dx = round (fromIntegral i * fromIntegral (qx - px) / sqrt (fromIntegral (px - qx) ^ 2 + fromIntegral (py - qy) ^ 2) ::Float)
-                                    in let at = abs $  round (fromIntegral t * fromIntegral (qx - px) / sqrt (fromIntegral (px - qx) ^ 2 + fromIntegral (py - qy) ^ 2) ::Float)
-                                    in let n = abs ((qx - px) `div` dx) + 1
-                                    in let rest = (qx - px) `mod` dx
-                                    in (take n [ square r (a, f a) | a <- [px+at, px+at+dx..]], rest)
+linerect :: Float -> Float -> Float -> Edge -> ([Square], Float)
+linerect t r i ((px, py), (qx, qy)) =
+                                    if sqrt ( (px - qx) ^ 2 +  (py - qy) ^ 2) /= 0 then
+                                        let f = line ((px, py), (qx, qy))
+                                        in let dx = ( i *  (qx - px) / sqrt ( (px - qx) ^ 2 +  (py - qy) ^ 2) ::Float)
+                                        in let at = abs $ ( t *  (qx - px) / sqrt ( (px - qx) ^ 2 +  (py - qy) ^ 2) ::Float)
+                                        in if dx == 0 then error "dense" else
+                                            let n = round (abs ((qx - px) / dx) + 1)
+                                                in let rest = (qx - px) / dx
+                                                in (take n [ square r (a, f a) | a <- [px+at, px+at+dx..]], rest)
+                                    else error $ show ( (px - qx) ^ 2) ++ " = " ++ show ( (py - qy) ^ 2)
 
-linesrect0 :: Int -> Int -> [Edge] -> [Square]
+linesrect0 :: Float -> Float -> [Edge] -> [Square]
 linesrect0 = linesrect 0
 
-linesrect :: Int -> Int -> Int -> [Edge] -> [Square]
+linesrect :: Float -> Float -> Float -> [Edge] -> [Square]
 linesrect t r i (e:es) = let (s, rest) = linerect t r i e
                         in s ++ linesrect rest r i es
 linesrect _ _ _ [] = []
@@ -269,10 +277,10 @@ linesrect _ _ _ [] = []
 nbr :: [a] -> [(a,a)]
 nbr a = zip a (drop 1 a)
 
-pathrect :: Int -> Int -> Path -> [Square]
+pathrect :: Float -> Float -> Path -> [Square]
 pathrect r i p = linesrect0 r i (nbr p)
 
-translation :: Int -> Int -> Path -> Path 
+translation :: Float -> Float -> Path -> Path
 translation a b = map (bimap (+a) (+b))
 
 --------random function-------------------------
@@ -288,7 +296,7 @@ xorshift32inf :: Int -> [Float]
 xorshift32inf seed= map ((/ 4294967295) . fromIntegral) $ iterate xorshift32 seed
 
 randomize :: Int -> Float -> [Point] -> [Point]
-randomize s i l = [ (round (x + b * i), round (y + b * i)) | (x,y) <- map (bimap fromIntegral fromIntegral) l | b <- drop 2 $ xorshift32inf s]
+randomize s i l = [ (x + b * i, y + b * i) | (x,y) <- l | b <- drop 2 $ xorshift32inf s]
 
 randomizeSqr :: Int -> Float -> [Square] -> [Square]
 randomizeSqr s i l = let p = map fst l
@@ -298,7 +306,7 @@ randomizeSqr s i l = let p = map fst l
 randomizeSqrr :: Int -> Float -> Float -> [Square] -> [Square]
 randomizeSqrr s i j l = let p = map fst l
                     in let r = map snd l
-                    in zip (randomize s i p) [ round (fromIntegral a * b * j) | a <- r | b <- drop 2 $ xorshift32inf s]
+                    in zip (randomize s i p) [ a * b * j | a <- r | b <- drop 2 $ xorshift32inf s]
 
 --------------unicode---------------------
 
@@ -310,29 +318,29 @@ hangul :: [IO ()]
 hangul = [svg ("uni"++ unicode s) $ map path x | s <- [0, 1..] | x <- comp]
 
 comp :: [[Path]]
-comp = (\a b c -> map (translation 50 100) a ++ map (translation 500 0) b ++ map (translation 300 500) c) 
-    <$> 
+comp = (\a b c -> map (translation 50 100) a ++ map (translation 500 0) b ++ map (translation 300 500) c)
+    <$>
         [
         g_0
         , gg_0
         , n_0
         , d_0
         , dd_0
-        , r_0 
-        , m_0 
-        , b_0 
+        , r_0
+        , m_0
+        , b_0
         , bb_0
-        , s_0 
+        , s_0
         , ss_0
         , _0
         , j_0
-        , jj_0 
-        , c_0 
-        , k_0 
-        , t_0 
+        , jj_0
+        , c_0
+        , k_0
+        , t_0
         , p_0
-        , h_0 
-        ] 
+        , h_0
+        ]
         <*> [
         a_1
         , ae_1
@@ -358,54 +366,57 @@ comp = (\a b c -> map (translation 50 100) a ++ map (translation 500 0) b ++ map
       ]
         <*> [
         []
-        , g_2 
-        , gg_2 
-        , gs_2 
-        , n_2 
-        , nj_2 
-        , nh_2 
-        , d_2 
-        , l_2 
-        , lg_2 
-        , lm_2 
-        , lb_2 
-        , ls_2 
-        , lt_2 
-        , lp_2 
-        , lh_2 
-        , m_2 
-        , b_2 
-        , bs_2 
-        , s_2 
-        , ss_2 
-        , ng_2 
-        , j_2 
-        , c_2 
-        , k_2 
-        , t_2 
-        , p_2 
-        , h_2 
+        , g_2
+        , gg_2
+        , gs_2
+        , n_2
+        , nj_2
+        , nh_2
+        , d_2
+        , l_2
+        , lg_2
+        , lm_2
+        , lb_2
+        , ls_2
+        , lt_2
+        , lp_2
+        , lh_2
+        , m_2
+        , b_2
+        , bs_2
+        , s_2
+        , ss_2
+        , ng_2
+        , j_2
+        , c_2
+        , k_2
+        , t_2
+        , p_2
+        , h_2
         ]
 
 --------------const----------------------------
 
+-- test :: IO ()
+-- test = svg "dddd" (map path $ map sqrtoPath [((10,10),55),((57,13),55),((104,15),55),((150,17),55),((194,16),55),((241,19),55),((287,21),55),((314,27),55),((322,17),55),((319,58),55),((315,98),55),((314,140),55),((310,179),55),((307,220),55),((305,262),55)])
+
 rfactor :: Float
-rfactor = 2
+rfactor = 5
 
 seed :: Int
-seed = 4294
+seed = 6
 
-radius :: Int 
-radius = 92
+radius :: Float
+radius = 54
 
-interval :: Int
-interval = 77
+interval :: Float
+interval = 44
 
 g_0 :: [Path]
 g_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(10,10), (300,20), (320, 30), (300,300)])
 
 gg_0 :: [Path]
-gg_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+gg_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(10, 10), (200, 20), (160, 235)] ++ pathrect radius interval [(230, 30), (310, 20), (294, 235)])
 
 n_0 :: [Path]
 n_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(40,10), (10,200), (20, 240), (40, 300) , (140, 250), (300,300)])
@@ -414,49 +425,50 @@ d_0 :: [Path]
 d_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(320, 40), (230, 50), (100, 5), (40,10), (10,150), (40, 240), (20, 300) , (120, 290), (300,300)])
 
 dd_0 :: [Path]
-dd_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+dd_0 = squares (randomizeSqr seed rfactor (pathrect radius interval [(320, 40), (230, 50), (100, 5), (40,10), (10,150), (40, 240), (20, 300) , (120, 290), (300,300)]))
+        ++ squares (randomizeSqr seed rfactor (pathrect radius interval [(150, 60), (145, 270)]))
 
 r_0 :: [Path]
-r_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+r_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(10, 10), (300, 5), (289, 163), (1, 144), (25, 319), (300, 279)])
 
 m_0 :: [Path]
-m_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+m_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [])
 
 b_0 :: [Path]
-b_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+b_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [])
 
 bb_0 :: [Path]
-bb_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+bb_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [])
 
 s_0 :: [Path]
-s_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+s_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [])
 
 ss_0 :: [Path]
-ss_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+ss_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [])
 
 _0 :: [Path]
-_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [])
 
 j_0 :: [Path]
-j_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+j_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [])
 
 jj_0 :: [Path]
-jj_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+jj_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [])
 
 c_0 :: [Path]
-c_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+c_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [])
 
 k_0 :: [Path]
-k_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+k_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [])
 
 t_0 :: [Path]
-t_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+t_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [])
 
 p_0 :: [Path]
-p_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+p_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [])
 
 h_0 :: [Path]
-h_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [(20,20), (270, 50)])
+h_0 = squares $ randomizeSqr seed rfactor (pathrect radius interval [])
 
 
 a_1 :: [Path]
